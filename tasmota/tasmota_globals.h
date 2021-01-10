@@ -123,7 +123,7 @@ String EthernetMacAddress(void);
 #undef USE_RF_FLASH
 
 // Not ported (yet)
-#undef USE_DISCOVERY
+
 #undef USE_MY92X1
 #undef USE_TUYA_MCU
 #undef USE_PS_16_DZ
@@ -224,6 +224,9 @@ const uint16_t LOG_BUFFER_SIZE = 4000;         // Max number of characters in lo
 #if defined(ARDUINO_ESP8266_RELEASE_2_3_0) || defined(ARDUINO_ESP8266_RELEASE_2_4_0) || defined(ARDUINO_ESP8266_RELEASE_2_4_1) || defined(ARDUINO_ESP8266_RELEASE_2_4_2) || defined(ARDUINO_ESP8266_RELEASE_2_5_0) || defined(ARDUINO_ESP8266_RELEASE_2_5_1) || defined(ARDUINO_ESP8266_RELEASE_2_5_2)
   #error "Arduino ESP8266 Core versions before 2.7.1 are not supported"
 #endif
+
+#define TASM_FILE_SETTINGS          "/settings"
+#define TASM_FILE_ZIGBEE            "/zb"
 
 #ifndef MQTT_MAX_PACKET_SIZE
 #define MQTT_MAX_PACKET_SIZE        1200       // Bytes
