@@ -2332,8 +2332,8 @@ void HandleUploadDone(void) {
 }
 
 void UploadServices(uint32_t start_service) {
-  if (Web.upload_services_stopped == start_service) { return; }
-  Web.upload_services_stopped = start_service;
+  if (Web.upload_services_stopped != start_service) { return; }
+  Web.upload_services_stopped = !start_service;
 
   if (start_service) {
 //    AddLog_P(LOG_LEVEL_DEBUG, PSTR("UPL: Services enabled"));
@@ -2633,7 +2633,8 @@ void HandleUploadLoop(void) {
     if (UPL_TASMOTA == Web.upload_file_type) { Update.end(); }
   }
   delay(0);
-  Scheduler();          // Feed OsWatch timer to prevent restart on long uploads
+  OsWatchLoop();
+//  Scheduler();          // Feed OsWatch timer to prevent restart on long uploads
 }
 
 /*-------------------------------------------------------------------------------------------*/
@@ -2796,40 +2797,6 @@ bool CaptivePortal(void)
 }
 
 /*********************************************************************************************/
-
-String UrlEncode(const String& text)
-{
-  const char hex[] = "0123456789ABCDEF";
-
-	String encoded = "";
-	int len = text.length();
-	int i = 0;
-	while (i < len)	{
-		char decodedChar = text.charAt(i++);
-
-/*
-    if (('a' <= decodedChar && decodedChar <= 'z') ||
-        ('A' <= decodedChar && decodedChar <= 'Z') ||
-        ('0' <= decodedChar && decodedChar <= '9') ||
-        ('=' == decodedChar)) {
-      encoded += decodedChar;
-		} else {
-      encoded += '%';
-			encoded += hex[decodedChar >> 4];
-			encoded += hex[decodedChar & 0xF];
-    }
-*/
-    if ((' ' == decodedChar) || ('+' == decodedChar)) {
-      encoded += '%';
-			encoded += hex[decodedChar >> 4];
-			encoded += hex[decodedChar & 0xF];
-    } else {
-      encoded += decodedChar;
-    }
-
-	}
-	return encoded;
-}
 
 int WebSend(char *buffer)
 {
