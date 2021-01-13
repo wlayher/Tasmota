@@ -886,6 +886,15 @@ void PerformEverySecond(void)
     ESP_getSketchSize();             // Init sketchsize as it can take up to 2 seconds
   }
 #endif
+
+#ifdef USE_UFILESYS
+  static bool settings_lkg = false;  // Settings saved as Last Known Good
+  // Copy Settings as Last Known Good if no changes have been saved since 30 minutes
+  if (!settings_lkg && (UtcTime() > START_VALID_TIME) && (Settings.cfg_timestamp < UtcTime() - (30 * 60))) {
+    TfsSaveFile(TASM_FILE_SETTINGS_LKG, (const uint8_t*)&Settings, sizeof(Settings));
+    settings_lkg = true;
+  }
+#endif
 }
 
 /*-------------------------------------------------------------------------------------------*\
@@ -1169,7 +1178,7 @@ void Every250mSeconds(void)
       }
       TasmotaGlobal.restart_flag--;
       if (TasmotaGlobal.restart_flag <= 0) {
-        AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_APPLICATION "%s"), (TasmotaGlobal.restart_halt) ? "Halted" : D_RESTARTING);
+        AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_APPLICATION "%s"), (TasmotaGlobal.restart_halt) ? PSTR("Halted") : PSTR(D_RESTARTING));
         EspRestart();
       }
     }
