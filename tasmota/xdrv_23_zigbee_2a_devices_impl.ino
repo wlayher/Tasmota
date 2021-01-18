@@ -695,6 +695,9 @@ void Z_Device::jsonAddDataAttributes(Z_attribute_list & attr_list) const {
   // show internal data - mostly last known values
   for (auto & data_elt : data) {
     data_elt.toAttributes(attr_list);
+    if (data_elt.getType() == Z_Data_Type::Z_Light) {   // since we don't have virtual methods, do an explicit test
+      ((Z_Data_Light&)data_elt).toRGBAttributes(attr_list);
+    }
   }
 }
 // Add "BatteryPercentage", "LastSeen", "LastSeenEpoch", "LinkQuality"
@@ -728,6 +731,7 @@ void Z_Device::jsonLightState(Z_attribute_list & attr_list) const {
       if (light.validHue()) {
         attr_list.findOrCreateAttribute(PSTR("Hue")).setUInt(light.getHue());
       }
+      light.toRGBAttributes(attr_list);
     }
     attr_list.addAttributePMEM(PSTR("Light")).setInt(light_mode);
   }
@@ -763,7 +767,7 @@ String Z_Devices::dumpCoordinator(void) const {
   attr_list.addAttributePMEM(PSTR("IEEEAddr")).setHex64(localIEEEAddr);
   attr_list.addAttributePMEM(PSTR("TotalDevices")).setUInt(zigbee_devices.devicesSize());
 
-  return attr_list.toString();
+  return attr_list.toString(true);
 }
 
 // If &device == nullptr, then dump all
