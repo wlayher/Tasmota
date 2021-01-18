@@ -941,6 +941,11 @@ void Every100mSeconds(void)
  * Every 0.25 second
 \*-------------------------------------------------------------------------------------------*/
 
+#ifdef USE_BLE_ESP32
+  // declare the fn
+  int ExtStopBLE();
+#endif  // USE_BLE_ESP32
+
 void Every250mSeconds(void)
 {
 // As the max amount of sleep = 250 mSec this loop should always be taken...
@@ -1010,6 +1015,9 @@ void Every250mSeconds(void)
         SettingsSave(1);  // Free flash for OTA update
       }
       if (TasmotaGlobal.ota_state_flag <= 0) {
+#ifdef USE_BLE_ESP32
+        ExtStopBLE();
+#endif  // USE_BLE_ESP32
 #ifdef USE_COUNTER
         CounterInterruptDisable(true);  // Prevent OTA failures on 100Hz counter interrupts
 #endif  // USE_COUNTER
@@ -1625,8 +1633,8 @@ void GpioInit(void)
   if (!TasmotaGlobal.soft_spi_enabled) {
     bool valid_cs = (ValidSpiPinUsed(GPIO_SPI_CS) ||
                      ValidSpiPinUsed(GPIO_RC522_CS) ||
-                     ValidSpiPinUsed(GPIO_NRF24_CS) ||
-                     ValidSpiPinUsed(GPIO_ILI9341_CS) ||
+                     (ValidSpiPinUsed(GPIO_NRF24_CS) && ValidSpiPinUsed(GPIO_NRF24_DC)) ||
+                     (ValidSpiPinUsed(GPIO_ILI9341_CS) && ValidSpiPinUsed(GPIO_ILI9341_DC)) ||
                      ValidSpiPinUsed(GPIO_EPAPER29_CS) ||
                      ValidSpiPinUsed(GPIO_EPAPER42_CS) ||
                      ValidSpiPinUsed(GPIO_ILI9488_CS) ||
@@ -1634,17 +1642,11 @@ void GpioInit(void)
                      ValidSpiPinUsed(GPIO_RA8876_CS) ||
                      ValidSpiPinUsed(GPIO_ST7789_DC) ||  // ST7789 CS may be omitted so chk DC too
                      ValidSpiPinUsed(GPIO_ST7789_CS) ||
-                     ValidSpiPinUsed(GPIO_SSD1331_CS) ||
+                     (ValidSpiPinUsed(GPIO_SSD1331_CS) && ValidSpiPinUsed(GPIO_SSD1331_DC)) ||
                      ValidSpiPinUsed(GPIO_SDCARD_CS)
                     );
-    bool valid_dc = (ValidSpiPinUsed(GPIO_SPI_DC) ||
-                     ValidSpiPinUsed(GPIO_NRF24_DC) ||
-                     ValidSpiPinUsed(GPIO_ILI9341_DC) ||
-                     ValidSpiPinUsed(GPIO_ST7789_DC) ||
-                     ValidSpiPinUsed(GPIO_SSD1331_DC)
-                    );
     // If SPI_CS and/or SPI_DC is used they must be valid
-    TasmotaGlobal.spi_enabled = (valid_cs && valid_dc) ? SPI_MOSI_MISO : SPI_NONE;
+    TasmotaGlobal.spi_enabled = (valid_cs) ? SPI_MOSI_MISO : SPI_NONE;
     if (TasmotaGlobal.spi_enabled) {
       TasmotaGlobal.my_module.io[12] = AGPIO(GPIO_SPI_MISO);
       SetPin(12, AGPIO(GPIO_SPI_MISO));
