@@ -50,9 +50,8 @@ ufsfree   free size in kB
 #define UFS_TFAT          2
 #define UFS_TLFS          3
 
-#define UFS_FILE_WRITE "w"
-#define UFS_FILE_READ "r"
-
+/*
+// In tasmota.ino
 #ifdef ESP8266
 #include <LittleFS.h>
 #include <SPI.h>
@@ -61,9 +60,7 @@ ufsfree   free size in kB
 #include <SDFAT.h>
 #endif  // USE_SDCARD
 #endif  // ESP8266
-
 #ifdef ESP32
-#define FFS_2
 #include <LITTLEFS.h>
 #ifdef USE_SDCARD
 #include <SD.h>
@@ -71,6 +68,7 @@ ufsfree   free size in kB
 #include "FFat.h"
 #include "FS.h"
 #endif  // ESP32
+*/
 
 // Global file system pointer
 FS *ufsp;
@@ -391,7 +389,7 @@ void UFSDelete(void) {
       result = (ufs_type && ufsp->remove(XdrvMailbox.data));
     }
     if (!result) {
-      ResponseCmndChar(D_JSON_FAILED);
+      ResponseCmndChar(PSTR(D_JSON_FAILED));
     } else {
       ResponseCmndDone();
     }
@@ -454,8 +452,8 @@ void UfsDirectory(void) {
 
   strcpy(ufs_path, "/");
 
-  if (Webserver->hasArg("download")) {
-    String stmp = Webserver->arg("download");
+  if (Webserver->hasArg(F("download"))) {
+    String stmp = Webserver->arg(F("download"));
     char *cp = (char*)stmp.c_str();
     if (UfsDownloadFile(cp)) {
       // is directory
@@ -465,8 +463,8 @@ void UfsDirectory(void) {
     }
   }
 
-  if (Webserver->hasArg("dir")) {
-    String stmp = Webserver->arg("dir");
+  if (Webserver->hasArg(F("dir"))) {
+    String stmp = Webserver->arg(F("dir"));
     ufs_dir = atoi(stmp.c_str());
     if (ufs_dir == 1) {
       dfsp = ufsp;
@@ -477,8 +475,8 @@ void UfsDirectory(void) {
     }
   }
 
-  if (Webserver->hasArg("delete")) {
-    String stmp = Webserver->arg("delete");
+  if (Webserver->hasArg(F("delete"))) {
+    String stmp = Webserver->arg(F("delete"));
     char *cp = (char*)stmp.c_str();
     dfsp->remove(cp);
   }
@@ -498,7 +496,7 @@ void UfsDirectory(void) {
   }
   WSContentSend_P(UFS_FORM_FILE_UPGc2);
 
-  WSContentSend_P(UFS_FORM_FILE_UPG, D_SCRIPT_UPLOAD);
+  WSContentSend_P(UFS_FORM_FILE_UPG, PSTR(D_SCRIPT_UPLOAD));
 
   WSContentSend_P(UFS_FORM_SDC_DIRa);
   if (ufs_type) {
@@ -516,7 +514,7 @@ void UfsListDir(char *path, uint8_t depth) {
   char name[32];
   char npath[128];
   char format[12];
-  sprintf(format, "%%-%ds", 24 - depth);
+  sprintf(format, PSTR("%%-%ds"), 24 - depth);
 
   File dir = dfsp->open(path, UFS_FILE_READ);
   if (dir) {
@@ -533,7 +531,7 @@ void UfsListDir(char *path, uint8_t depth) {
           break;
         }
       }
-      WSContentSend_P(UFS_FORM_SDC_DIRd, npath, path, "..");
+      WSContentSend_P(UFS_FORM_SDC_DIRd, npath, path, PSTR(".."));
     }
     char *ep;
     while (true) {
@@ -764,13 +762,13 @@ bool Xdrv50(uint8_t function) {
 #ifdef USE_WEBSERVER
     case FUNC_WEB_ADD_MANAGEMENT_BUTTON:
       if (ufs_type) {
-        WSContentSend_PD(UFS_WEB_DIR, D_MANAGE_FILE_SYSTEM);
+        WSContentSend_PD(UFS_WEB_DIR, PSTR(D_MANAGE_FILE_SYSTEM));
       }
       break;
     case FUNC_WEB_ADD_HANDLER:
-      Webserver->on("/ufsd", UfsDirectory);
-      Webserver->on("/ufsu", HTTP_GET, UfsDirectory);
-      Webserver->on("/ufsu", HTTP_POST,[](){Webserver->sendHeader("Location","/ufsu");Webserver->send(303);}, HandleUploadLoop);
+      Webserver->on(F("/ufsd"), UfsDirectory);
+      Webserver->on(F("/ufsu"), HTTP_GET, UfsDirectory);
+      Webserver->on(F("/ufsu"), HTTP_POST,[](){Webserver->sendHeader(F("Location"),F("/ufsu"));Webserver->send(303);}, HandleUploadLoop);
       break;
 #endif // USE_WEBSERVER
   }
