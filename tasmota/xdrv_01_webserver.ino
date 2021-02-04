@@ -27,6 +27,9 @@
 
 #define XDRV_01                               1
 
+// Enable below demo feature only if defines USE_UNISHOX_COMPRESSION and USE_SCRIPT_WEB_DISPLAY are disabled
+//#define USE_WEB_SSE
+
 #ifndef WIFI_SOFT_AP_CHANNEL
 #define WIFI_SOFT_AP_CHANNEL                  1          // Soft Access Point Channel number between 1 and 11 as used by WifiManager web GUI
 #endif
@@ -61,8 +64,6 @@ enum UploadTypes { UPL_TASMOTA, UPL_SETTINGS, UPL_EFM8BB1, UPL_TASMOTACLIENT, UP
   #endif
 #endif
 
-
-
 const char HTTP_SCRIPT_COUNTER[] PROGMEM =
   "var cn=180;"                           // seconds
   "function u(){"
@@ -73,7 +74,6 @@ const char HTTP_SCRIPT_COUNTER[] PROGMEM =
     "}"
   "}"
   "wl(u);";
-
 
 #ifdef USE_UNISHOX_COMPRESSION
   #ifdef USE_SCRIPT_WEB_DISPLAY
@@ -86,7 +86,11 @@ const char HTTP_SCRIPT_COUNTER[] PROGMEM =
   #ifdef USE_SCRIPT_WEB_DISPLAY
     #include "./html_uncompressed/HTTP_SCRIPT_ROOT_WEB_DISPLAY.h"
   #else
-    #include "./html_uncompressed/HTTP_SCRIPT_ROOT_NO_WEB_DISPLAY.h"
+    #ifdef USE_WEB_SSE
+      #include "./html_uncompressed/HTTP_SCRIPT_ROOT_SSE_NO_WEB_DISPLAY.h"
+    #else
+      #include "./html_uncompressed/HTTP_SCRIPT_ROOT_NO_WEB_DISPLAY.h"
+    #endif  // USE_WEB_SSE
   #endif
   #include "./html_uncompressed/HTTP_SCRIPT_ROOT_PART2.h"
 #endif
@@ -346,8 +350,8 @@ const char kButtonAction[] PROGMEM =
   "md|wi|lg|co|tp|dl|rs";
 const char kButtonConfirm[] PROGMEM = D_CONFIRM_RESTART "|" D_CONFIRM_RESET_CONFIGURATION;
 
-enum CTypes { CT_HTML, CT_PLAIN, CT_XML, CT_JSON, CT_STREAM };
-const char kContentTypes[] PROGMEM = "text/html|text/plain|text/xml|application/json|application/octet-stream";
+enum CTypes { CT_HTML, CT_PLAIN, CT_XML, CT_STREAM, CT_APP_JSON, CT_APP_STREAM };
+const char kContentTypes[] PROGMEM = "text/html|text/plain|text/xml|text/event-stream|application/json|application/octet-stream";
 
 const char kLoggingOptions[] PROGMEM = D_SERIAL_LOG_LEVEL "|" D_WEB_LOG_LEVEL "|" D_MQTT_LOG_LEVEL "|" D_SYS_LOG_LEVEL;
 const char kLoggingLevels[] PROGMEM = D_NONE "|" D_ERROR "|" D_INFO "|" D_DEBUG "|" D_MORE_DEBUG;
@@ -461,7 +465,8 @@ void StartWebserver(int type, IPAddress ipweb)
         WebServer_on(uri, line.handler, pgm_read_byte(&line.method));
       }
       Webserver->onNotFound(HandleNotFound);
-      Webserver->on(F("/u2"), HTTP_POST, HandleUploadDone, HandleUploadLoop);  // this call requires 2 functions so we keep a direct call
+//      Webserver->on(F("/u2"), HTTP_POST, HandleUploadDone, HandleUploadLoop);  // this call requires 2 functions so we keep a direct call
+      Webserver->on("/u2", HTTP_POST, HandleUploadDone, HandleUploadLoop);  // this call requires 2 functions so we keep a direct call
 #ifndef FIRMWARE_MINIMAL
       XdrvCall(FUNC_WEB_ADD_HANDLER);
       XsnsCall(FUNC_WEB_ADD_HANDLER);
@@ -568,6 +573,9 @@ void HttpHeaderCors(void)
 
 void WSHeaderSend(void)
 {
+  char server[32];
+  snprintf_P(server, sizeof(server), PSTR("Tasmota/%s (%s)"), TasmotaGlobal.version, GetDeviceHardware().c_str());
+  Webserver->sendHeader(F("Server"), server);
   Webserver->sendHeader(F("Cache-Control"), F("no-cache, no-store, must-revalidate"));
   Webserver->sendHeader(F("Pragma"), F("no-cache"));
   Webserver->sendHeader(F("Expires"), F("-1"));
@@ -1223,7 +1231,13 @@ bool HandleRootStatusRefresh(void)
     ExecuteWebCommand(svalue, SRC_WEBGUI);
   }
 #endif // USE_ZIGBEE
+
+#ifdef USE_WEB_SSE
+  WSContentBegin(200, CT_STREAM);
+  WSContentSend_P(PSTR("data: "));
+#else
   WSContentBegin(200, CT_HTML);
+#endif  // USE_WEB_SSE
   WSContentSend_P(PSTR("{t}"));
   XsnsCall(FUNC_WEB_SENSOR);
   XdrvCall(FUNC_WEB_SENSOR);
@@ -1251,14 +1265,7 @@ bool HandleRootStatusRefresh(void)
 
     WSContentSend_P(PSTR("</tr></table>"));
   }
-#ifdef USE_TUYA_MCU
-  if (IsModuleTuya()) {
-    uint32_t modeset = TuyaModeSet();
-    if (AsModuleTuyaMS()) {
-      WSContentSend_P(PSTR("<div style='text-align:center;font-size:25px;'>" D_JSON_IRHVAC_MODE ": %d</div>"), modeset);
-    }
-  }
-#endif  // USE_TUYA_MCU
+  WSContentSend_P(PSTR("\n\n"));  // Prep for SSE
   WSContentEnd();
 
   return true;
@@ -1443,8 +1450,8 @@ void HandleTemplateConfiguration(void)
   for (uint32_t i = 0; i < MAX_GPIO_PIN; i++) {
     if (!FlashPin(i)) {
       WSContentSend_P(PSTR("<tr><td><b><font color='#%06x'>" D_GPIO "%d</font></b></td><td%s><select id='g%d' onchange='ot(%d,this.value)'></select></td>"),
-        ((9==i)||(10==i)) ? WebColor(COL_TEXT_WARNING) : WebColor(COL_TEXT), i, (0==i) ? PSTR(" style='width:150px'") : "", i, i);
-      WSContentSend_P(PSTR("<td style='width:50px'><select id='h%d'></select></td></tr>"), i);
+        ((9==i)||(10==i)) ? WebColor(COL_TEXT_WARNING) : WebColor(COL_TEXT), i, (0==i) ? PSTR(" style='width:146px'") : "", i, i);
+      WSContentSend_P(PSTR("<td style='width:54px'><select id='h%d'></select></td></tr>"), i);
     }
   }
   WSContentSend_P(PSTR("</table>"));
@@ -1562,9 +1569,9 @@ void HandleModuleConfiguration(void)
   for (uint32_t i = 0; i < ARRAY_SIZE(template_gp.io); i++) {
     if (ValidGPIO(i, template_gp.io[i])) {
       snprintf_P(stemp, 3, PINS_WEMOS +i*2);
-      WSContentSend_P(PSTR("<tr><td style='width:116px'>%s <b>" D_GPIO "%d</b></td><td style='width:150px'><select id='g%d' onchange='ot(%d,this.value)'></select></td>"),
+      WSContentSend_P(PSTR("<tr><td style='width:116px'>%s <b>" D_GPIO "%d</b></td><td style='width:146px'><select id='g%d' onchange='ot(%d,this.value)'></select></td>"),
         (WEMOS==TasmotaGlobal.module_type)?stemp:"", i, i, i);
-      WSContentSend_P(PSTR("<td style='width:50px'><select id='h%d'></select></td></tr>"), i);
+      WSContentSend_P(PSTR("<td style='width:54px'><select id='h%d'></select></td></tr>"), i);
     }
   }
   WSContentSend_P(PSTR("</table>"));
@@ -1990,7 +1997,7 @@ void HandleBackupConfiguration(void)
 
   Webserver->sendHeader(F("Content-Disposition"), attachment);
 
-  WSSend(200, CT_STREAM, "");
+  WSSend(200, CT_APP_STREAM, "");
 
   uint32_t cfg_crc32 = Settings.cfg_crc32;
   Settings.cfg_crc32 = GetSettingsCrc32();  // Calculate crc (again) as it might be wrong when savedata = 0 (#3918)
@@ -2059,7 +2066,7 @@ void HandleInformation(void)
 
   char stopic[TOPSZ];
 
-  int freeMem = ESP_getFreeHeap();
+  float freeMem = ESP_getFreeHeap1024();
 
   WSContentStart_P(PSTR(D_INFORMATION));
   // Save 1k of code space replacing table html with javascript replace codes
@@ -2174,13 +2181,16 @@ void HandleInformation(void)
   WSContentSend_P(PSTR("}1" D_PROGRAM_FLASH_SIZE "}2%d kB"), ESP.getFlashChipSize() / 1024);
   WSContentSend_P(PSTR("}1" D_PROGRAM_SIZE "}2%d kB"), ESP_getSketchSize() / 1024);
   WSContentSend_P(PSTR("}1" D_FREE_PROGRAM_SPACE "}2%d kB"), ESP.getFreeSketchSpace() / 1024);
-  WSContentSend_P(PSTR("}1" D_FREE_MEMORY "}2%d kB"), freeMem / 1024);
 #ifdef ESP32
+  int32_t freeMaxMem = 100 - (int32_t)(ESP_getMaxAllocHeap() * 100 / ESP_getFreeHeap());
+  WSContentSend_P(PSTR("}1" D_FREE_MEMORY "}2%1_f kB (" D_FRAGMENTATION " %d%%)"), &freeMem, freeMaxMem);
   if (psramFound()) {
     WSContentSend_P(PSTR("}1" D_PSR_MAX_MEMORY "}2%d kB"), ESP.getPsramSize() / 1024);
     WSContentSend_P(PSTR("}1" D_PSR_FREE_MEMORY "}2%d kB"), ESP.getFreePsram() / 1024);
   }
-#endif
+#else // ESP32
+  WSContentSend_P(PSTR("}1" D_FREE_MEMORY "}2%1_f kB"), &freeMem);
+#endif // ESP32
   WSContentSend_P(PSTR("</td></tr></table>"));
 
   WSContentSend_P(HTTP_SCRIPT_INFO_END);
@@ -2671,14 +2681,14 @@ void HandleHttpCommand(void)
     WebGetArg(PSTR("password"), tmp2, sizeof(tmp2));
 
     if (!(!strcmp(tmp1, WEB_USERNAME) && !strcmp(tmp2, SettingsText(SET_WEBPWD)))) {
-      WSContentBegin(401, CT_JSON);
+      WSContentBegin(401, CT_APP_JSON);
       WSContentSend_P(PSTR("{\"" D_RSLT_WARNING "\":\"" D_NEED_USER_AND_PASSWORD "\"}"));
       WSContentEnd();
       return;
     }
   }
 
-  WSContentBegin(200, CT_JSON);
+  WSContentBegin(200, CT_APP_JSON);
   String svalue = Webserver->arg(F("cmnd"));
   if (svalue.length() && (svalue.length() < MQTT_MAX_PACKET_SIZE)) {
     uint32_t curridx = TasmotaGlobal.log_buffer_pointer;
