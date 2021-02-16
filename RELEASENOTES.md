@@ -95,6 +95,8 @@ The attached binaries can also be downloaded from http://ota.tasmota.com/tasmota
 - Commands ``ZbNameKey``, ``ZbDeviceTopic``, ``ZbNoPrefix``, ``ZbEndpointSuffix``, ``ZbNoAutoBind`` and ``ZbNameTopic`` as synonyms for ``SetOption83, 89, 100, 101, 110`` and ``112``
 - Commands ``ZbNoAutoBind``, ``ZbReceivedTopic`` and ``ZbOmitDevice`` as synonyms for ``SetOption116, 118`` and ``119``
 - Commands ``BuzzerActive`` and ``BuzzerPwm`` as synonyms for ``SetOption67`` and ``111``
+- Filesystem commands ``Ufs``, ``UfsType``, ``UfsSize``, ``UfsFree``, ``UfsDelete``, ``UfsRename`` and ``UfsRun``
+- Basic support for filesystem ``autoexec.bat``
 - Milliseconds to console output [#10152](https://github.com/arendst/Tasmota/issues/10152)
 - Gpio ``Option_a1`` enabling PWM2 high impedance if powered off as used by Wyze bulbs [#10196](https://github.com/arendst/Tasmota/issues/10196)
 - Rotary No Pullup GPIO selection ``Rotary A/B_n`` [#10407](https://github.com/arendst/Tasmota/issues/10407)
@@ -141,6 +143,9 @@ The attached binaries can also be downloaded from http://ota.tasmota.com/tasmota
 
 ### Changed
 - Remove support for direct migration from versions before v8.1.0 (Doris)
+- IRremoteESP8266 library from v2.7.14 to v2.7.15
+- NeoPixelBus library from v2.6.0 to v2.6.1.4
+- ILI9341 library from Adafruit_ILI9341-1.2.0-Tasmota-1.0 to ILI9341-gemu-1.0
 - Command ``Sleep 0`` removes any sleep from wifi modem except when ESP32 BLE is active
 - Logging from heap to stack freeing 700 bytes RAM
 - Disabled ``USE_LIGHT`` light support for ZBBridge saving 17.6kB [#10374](https://github.com/arendst/Tasmota/issues/10374)
