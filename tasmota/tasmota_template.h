@@ -152,6 +152,8 @@ enum UserSelectablePins {
   GPIO_TM1637CLK, GPIO_TM1637DIO,      // TM1637 interface
   GPIO_PROJECTOR_CTRL_TX, GPIO_PROJECTOR_CTRL_RX,  // LCD/DLP Projector Serial Control
   GPIO_SSD1351_DC,
+  GPIO_XPT2046_CS,                     // XPT2046 SPI Chip Select
+  GPIO_CSE7761_TX, GPIO_CSE7761_RX,    // CSE7761 Serial interface (Dual R3)
   GPIO_SENSOR_END };
 
 enum ProgramSelectablePins {
@@ -324,6 +326,8 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_TM1637_CLK "|" D_SENSOR_TM1637_DIO "|"
   D_SENSOR_PROJECTOR_CTRL_TX "|" D_SENSOR_PROJECTOR_CTRL_RX "|"
   D_SENSOR_SSD1351_DC "|"
+  D_SENSOR_XPT2046_CS "|"
+  D_SENSOR_CSE7761_TX "|" D_SENSOR_CSE7761_RX "|"
   ;
 
 const char kSensorNamesFixed[] PROGMEM =
@@ -413,6 +417,10 @@ const uint16_t kGpioNiceList[] PROGMEM = {
 #ifdef USE_DISPLAY_ILI9341
   AGPIO(GPIO_ILI9341_CS),
   AGPIO(GPIO_ILI9341_DC),
+#ifdef USE_XPT2046
+  AGPIO(GPIO_XPT2046_CS),     // XPT2046 SPI Chip Select
+#endif
+
 #endif  // USE_DISPLAY_ILI9341
 #ifdef USE_DISPLAY_ILI9488
   AGPIO(GPIO_ILI9488_CS),
@@ -562,6 +570,10 @@ const uint16_t kGpioNiceList[] PROGMEM = {
 #endif
 #if defined(USE_I2C) && defined(USE_ADE7953)
   AGPIO(GPIO_ADE7953_IRQ),    // ADE7953 IRQ
+#endif
+#ifdef USE_CSE7761
+  AGPIO(GPIO_CSE7761_TX),     // CSE7761 Serial interface (Dual R3)
+  AGPIO(GPIO_CSE7761_RX),     // CSE7761 Serial interface (Dual R3)
 #endif
 #ifdef USE_CSE7766
   AGPIO(GPIO_CSE7766_TX),     // CSE7766 Serial interface (S31 and Pow R2)
