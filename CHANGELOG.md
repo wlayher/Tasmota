@@ -16,10 +16,9 @@ All notable changes to this project will be documented in this file.
 - Crash protection in ext_vnsprintf_P (#11202)
 - Extent compile time SetOptions support (#11204)
 - ESP32 Extent BLE (#11212)
-
 - ESP32 support for WS2812 hardware driver via RMT or I2S
-
 - ESP32 support for secondary I2C controller
+- Add support for MPU6686 on primary or secondary I2C bus
 
 
 ### Changed
