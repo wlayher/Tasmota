@@ -55,6 +55,10 @@
 #define USE_UFILESYS
 #define USE_SDCARD
   #define GUI_TRASH_FILE
+
+#define USE_BERRY                                // Enable Berry scripting language
+  #define USE_BERRY_PSRAM                        // Allocate Berry memory in PSRAM if PSRAM is connected - this might be slightly slower but leaves main memory intact
+
 #define USE_ADC
 #define USE_SPI
   #define USE_DISPLAY                            // Add SPI Display Support (+2k code)
@@ -84,6 +88,10 @@
 #define USE_UFILESYS
 #define USE_SDCARD
   #define GUI_TRASH_FILE
+
+#define USE_BERRY                                // Enable Berry scripting language
+  #define USE_BERRY_PSRAM                        // Allocate Berry memory in PSRAM if PSRAM is connected - this might be slightly slower but leaves main memory intact
+
 #define USE_I2C
   #define USE_BMA423
   #define USE_MPU6886
@@ -278,6 +286,7 @@
 //  #define USE_PROJECTOR_CTRL_NEC                 // Use codes for NEC
 //  #define USE_PROJECTOR_CTRL_OPTOMA              // Use codes for OPTOMA
 //#define USE_AS608                                // Add support for AS608 optical and R503 capacitive fingerprint sensor (+3k4 code)
+//#define USE_TFMINIPLUS                           // Add support for TFmini Plus (TFmini, TFmini-S) LiDAR modules via UART interface
 
 #define USE_ENERGY_SENSOR                        // Add energy sensors (-14k code)
 #define USE_PZEM004T                             // Add support for PZEM004T Energy monitor (+2k code)
