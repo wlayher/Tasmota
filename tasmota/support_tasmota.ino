@@ -157,6 +157,53 @@ char* GetStateText(uint32_t state)
 
 /********************************************************************************************/
 
+void ZeroCrossMomentStart(void) {
+  if (!TasmotaGlobal.zc_interval || !TasmotaGlobal.zc_time) { return; }
+
+//  uint32_t dbg_interval = TasmotaGlobal.zc_interval;
+//  uint32_t dbg_zctime = TasmotaGlobal.zc_time;
+//  uint32_t dbg_starttime = micros();
+
+  uint32_t timeout = millis() +22;  // Catch at least 2 * 50Hz pulses
+  uint32_t trigger_moment = TasmotaGlobal.zc_time + TasmotaGlobal.zc_interval - TasmotaGlobal.zc_offset - TasmotaGlobal.zc_code_offset;
+  while (!TimeReached(timeout) && !TimeReachedUsec(trigger_moment)) {}
+
+//  uint32_t dbg_endtime = micros();
+//  AddLog(LOG_LEVEL_DEBUG, PSTR("ZCD: CodeExecTime %d, StartTime %d, EndTime %d, ZcTime %d, Interval %d"),
+//    dbg_endtime - dbg_starttime, dbg_starttime, dbg_endtime, dbg_zctime, dbg_interval);
+
+  TasmotaGlobal.zc_code_offset = micros();
+}
+
+void ZeroCrossMomentEnd(void) {
+  if (!TasmotaGlobal.zc_interval || !TasmotaGlobal.zc_time) { return; }
+
+  TasmotaGlobal.zc_code_offset = (micros() - TasmotaGlobal.zc_code_offset) / 2;
+
+//  AddLog(LOG_LEVEL_DEBUG, PSTR("ZCD: CodeExecTime %d"), TasmotaGlobal.zc_code_offset * 2);
+}
+
+void ICACHE_RAM_ATTR ZeroCrossIsr(void) {
+  uint32_t time = micros();
+  TasmotaGlobal.zc_interval = time - TasmotaGlobal.zc_time;
+  TasmotaGlobal.zc_time = time;
+  if (!TasmotaGlobal.zc_time) {TasmotaGlobal.zc_time = 1; }
+}
+
+void ZeroCrossInit(uint32_t offset) {
+  if (PinUsed(GPIO_ZEROCROSS)) {
+    TasmotaGlobal.zc_offset = offset;
+
+    uint32_t gpio = Pin(GPIO_ZEROCROSS);
+    pinMode(gpio, INPUT_PULLUP);
+    attachInterrupt(gpio, ZeroCrossIsr, CHANGE);
+
+    AddLog(LOG_LEVEL_INFO, PSTR("ZCD: Activated"));  // Zero-cross detection activated
+  }
+}
+
+/********************************************************************************************/
+
 void SetLatchingRelay(power_t lpower, uint32_t state)
 {
   // TasmotaGlobal.power xx00 - toggle REL1 (Off) and REL3 (Off) - device 1 Off, device 2 Off
@@ -232,6 +279,8 @@ void SetDevicePower(power_t rpower, uint32_t source)
 #endif  // ESP8266
   else
   {
+    ZeroCrossMomentStart();
+
     for (uint32_t i = 0; i < TasmotaGlobal.devices_present; i++) {
       power_t state = rpower &1;
       if (i < MAX_RELAYS) {
@@ -239,6 +288,8 @@ void SetDevicePower(power_t rpower, uint32_t source)
       }
       rpower >>= 1;
     }
+
+    ZeroCrossMomentEnd();
   }
 }
 
@@ -556,17 +607,21 @@ void ExecuteCommandPower(uint32_t device, uint32_t state, uint32_t source)
         ((POWER_ON == state) || ((POWER_TOGGLE == state) && !(TasmotaGlobal.power & mask)))
        ) {
       interlock_mutex = true;                           // Clear all but masked relay in interlock group if new set requested
+      bool perform_interlock_delay = false;
       for (uint32_t i = 0; i < MAX_INTERLOCKS; i++) {
         if (Settings.interlock[i] & mask) {             // Find interlock group
           for (uint32_t j = 0; j < TasmotaGlobal.devices_present; j++) {
             power_t imask = 1 << j;
             if ((Settings.interlock[i] & imask) && (TasmotaGlobal.power & imask) && (mask != imask)) {
               ExecuteCommandPower(j +1, POWER_OFF, SRC_IGNORE);
-              delay(50);                                // Add some delay to make sure never have more than one relay on
+              perform_interlock_delay = true;
             }
           }
           break;                                        // An interlocked relay is only present in one group so quit
         }
+      }
+      if (perform_interlock_delay) {
+        delay(50);                                // Add some delay to make sure never have more than one relay on
       }
       interlock_mutex = false;
     }
