@@ -33,6 +33,10 @@
 #define CODE_IMAGE_STR "webcam"
 
 #define USE_WEBCAM
+#define USE_UFILESYS
+#define USE_SDCARD
+  #define GUI_TRASH_FILE
+#define USE_SPI
 #undef  USE_MI_ESP32                             // (ESP32 only) Disable support for ESP32 as a BLE-bridge (+9k2 mem, +292k flash)
 #endif  // FIRMWARE_WEBCAM
 
@@ -179,6 +183,7 @@
 
 #define USE_LIGHT_PALETTE                        // Add support for color palette (+0k9 code)
 
+#define USE_HALLEFFECT                           // Add support for internal Hall Effcet sensor connected to GPIO36 and GPIO39
 #define USE_DS18x20                              // Add support for DS18x20 sensors with id sort, single scan and read retry (+1k3 code)
 
 #define USE_I2C                                  // I2C using library wire (+10k code, 0k2 mem, 124 iram)
