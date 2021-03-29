@@ -477,7 +477,7 @@
 #define USE_SONOFF_SC                            // Add support for Sonoff Sc (+1k1 code)
 #define USE_TUYA_MCU                             // Add support for Tuya Serial MCU
   #define TUYA_DIMMER_ID       0                 // Default dimmer Id
-//  #define USE_TUYA_TIME                          // Add support for Set Time in Tuya MCU
+  #define USE_TUYA_TIME                          // Add support for Set Time in Tuya MCU
 #define USE_ARMTRONIX_DIMMERS                    // Add support for Armtronix Dimmers (+1k4 code)
 #define USE_PS_16_DZ                             // Add support for PS-16-DZ Dimmer (+2k code)
 #define USE_SONOFF_IFAN                          // Add support for Sonoff iFan02 and iFan03 (+2k code)
@@ -899,6 +899,7 @@
 //  #define ETH_CLKMODE       0                    // [EthClockMode] 0 = ETH_CLOCK_GPIO0_IN, 1 = ETH_CLOCK_GPIO0_OUT, 2 = ETH_CLOCK_GPIO16_OUT, 3 = ETH_CLOCK_GPIO17_OUT
 
 #define USE_ADC                                  // Add support for ADC on GPIO32 to GPIO39
+#define USE_HALLEFFECT                           // Add support for internal Hall Effcet sensor connected to GPIO36 and GPIO39
 
 //#define USE_SPI                                  // Add support for hardware SPI
 //#define USE_MI_ESP32                             // Add support for ESP32 as a BLE-bridge (+9k2 mem, +292k flash)
