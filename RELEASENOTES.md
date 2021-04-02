@@ -80,8 +80,10 @@ The attached binaries can also be downloaded from http://ota.tasmota.com/tasmota
 
 ## Changelog v9.3.1.2
 ### Added
-- Commands ``MqttKeepAlive 1..100`` to set Mqtt Keep Alive timer (default 30) and ``MqttTimeout 1..100`` to set Mqtt Socket Timeout (default 4) [#5341](https://github.com/arendst/Tasmota/issues/5341)
 - Command ``Sensor80 1 <0..7>`` to control MFRC522 RFID antenna gain from 18dB (0) to 48dB (7) [#11073](https://github.com/arendst/Tasmota/issues/11073)
+- Command ``SerialBuffer 256..520`` to change hardware serial receive buffer size from default (256) to max local buffer size (520) [#11448](https://github.com/arendst/Tasmota/issues/11448)
+- Command ``SetOption126 1`` to enable DS18x20 arithmetic mean over teleperiod for JSON temperature based on [#11472](https://github.com/arendst/Tasmota/issues/11472)
+- Commands ``MqttKeepAlive 1..100`` to set Mqtt Keep Alive timer (default 30) and ``MqttTimeout 1..100`` to set Mqtt Socket Timeout (default 4) [#5341](https://github.com/arendst/Tasmota/issues/5341)
 - Commands ``DisplayType`` to select sub-modules where implemented and ``DisplayInvert`` to select inverted display where implemented
 - Support for SML VBUS [#11125](https://github.com/arendst/Tasmota/issues/11125)
 - Support for NEC and OPTOMA LCD/DLP Projector serial power control by Jan Bubík [#11145](https://github.com/arendst/Tasmota/issues/11145)
@@ -92,6 +94,7 @@ The attached binaries can also be downloaded from http://ota.tasmota.com/tasmota
 - Support for TM1638 seven segment display by Ajith Vasudevan [#11031](https://github.com/arendst/Tasmota/issues/11031)
 - Support for MAX7219 seven segment display by Ajith Vasudevan [#11387](https://github.com/arendst/Tasmota/issues/11387)
 - Support for MPU6886 on primary or secondary I2C bus
+- Support for multiple CCS811 sensors with baseline control (USE_CCS811_V2) by clanganke [#10858](https://github.com/arendst/Tasmota/issues/10858)
 - Allow MCP230xx pinmode from output to input [#11104](https://github.com/arendst/Tasmota/issues/11104)
 - Berry improvements [#11163](https://github.com/arendst/Tasmota/issues/11163)
 - Extent compile time SetOptions support [#11204](https://github.com/arendst/Tasmota/issues/11204)
@@ -108,6 +111,8 @@ The attached binaries can also be downloaded from http://ota.tasmota.com/tasmota
 - TuyaMcu dimmer timeout [#11121](https://github.com/arendst/Tasmota/issues/11121)
 - Rename epaper 42 commands [#11222](https://github.com/arendst/Tasmota/issues/11222)
 - DeepSleep announcement topic [#11223](https://github.com/arendst/Tasmota/issues/11223)
+- Limit number of relay/button columns in GUI to 8 [#11546](https://github.com/arendst/Tasmota/issues/11546)
+- ADC range result from int to float using command ``FreqRes`` for decimal resolution selection [#11545](https://github.com/arendst/Tasmota/issues/11545)
 
 ### Fixed
 - PN532 on ESP32 Serial flush both Tx and Rx buffers [#10910](https://github.com/arendst/Tasmota/issues/10910)
