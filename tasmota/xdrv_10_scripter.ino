@@ -1345,7 +1345,7 @@ uint8_t pt_pin;
 
 #define MPT_DEBOUNCE 10
 
-void ICACHE_RAM_ATTR MP_Timer(void) {
+void IRAM_ATTR MP_Timer(void) {
   uint32_t level = digitalRead(pt_pin&0x3f);
   uint32_t ms = millis();
   uint32_t time;
@@ -6320,7 +6320,7 @@ const char HTTP_SCRIPT_FULLPAGE1[] PROGMEM =
       "x=new XMLHttpRequest();"
       "x.onreadystatechange=function(){"
         "if(x.readyState==4&&x.status==200){"
-          "var s=x.responseText.replace(/{t}/g,\"<table style='width:100%%'>\").replace(/{s}/g,\"<tr><th>\").replace(/{m}/g,\"</th><td>\").replace(/{e}/g,\"</td></tr>\").replace(/{c}/g,\"%%'><div style='text-align:center;font-weight:\");"
+          "var s=x.responseText.replace(/{t}/g,\"<table style='width:100%%'>\").replace(/{s}/g,\"<tr><th>\").replace(/{m}/g,\"</th><td>\").replace(/{e}/g,\"</td></tr>\");"
           "eb('l1').innerHTML=s;"
         "}"
       "};"
