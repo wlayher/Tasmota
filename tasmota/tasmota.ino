@@ -138,6 +138,7 @@ struct {
   int16_t save_data_counter;                // Counter and flag for config save to Flash
   RulesBitfield rules_flag;                 // Rule state flags (16 bits)
 
+  bool rule_teleperiod;                     // Process rule based on teleperiod data using prefix TELE-
   bool serial_local;                        // Handle serial locally
   bool fallback_topic_flag;                 // Use Topic or FallbackTopic
   bool backlog_mutex;                       // Command backlog pending
@@ -343,10 +344,17 @@ void setup(void) {
   }
 
   RtcInit();
-
   GpioInit();
-  SetPowerOnState();
+  ButtonInit();
+  SwitchInit();
+#ifdef ROTARY_V1
+  RotaryInit();
+#endif  // ROTARY_V1
 
+  XdrvCall(FUNC_PRE_INIT);
+  XsnsCall(FUNC_PRE_INIT);
+
+  SetPowerOnState();
   WifiConnect();
 
   AddLog(LOG_LEVEL_INFO, PSTR(D_PROJECT " %s %s " D_VERSION " %s%s-" ARDUINO_CORE_RELEASE "(%s)"),
@@ -354,8 +362,6 @@ void setup(void) {
 #ifdef FIRMWARE_MINIMAL
   AddLog(LOG_LEVEL_INFO, PSTR(D_WARNING_MINIMAL_VERSION));
 #endif  // FIRMWARE_MINIMAL
-
-//  RtcInit();
 
 #ifdef USE_ARDUINO_OTA
   ArduinoOTAInit();

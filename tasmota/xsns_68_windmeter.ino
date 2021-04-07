@@ -157,7 +157,7 @@ void WindMeterEverySecond(void)
 #endif  // USE_WINDMETER_NOSTATISTICS
 
   if (WindMeterShouldTriggerTele()) {
-      WindMeterTriggerTele();
+    MqttPublishTeleperiodSensor();
   }
 }
 
@@ -269,17 +269,6 @@ void WindMeterShow(bool json)
 #endif  // USE_WINDMETER_NOSTATISTICS
     );
 #endif  // USE_WEBSERVER
-  }
-}
-
-void WindMeterTriggerTele(void)
-{
-  ResponseClear();
-  if (MqttShowSensor()) {
-    MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR), Settings.flag.mqtt_sensor_retain);
-#ifdef USE_RULES
-    RulesTeleperiod();  // Allow rule based HA messages
-#endif  // USE_RULES
   }
 }
 
