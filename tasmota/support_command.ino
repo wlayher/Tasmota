@@ -317,9 +317,14 @@ void CommandHandler(char* topicBuf, char* dataBuf, uint32_t data_len)
 
 /********************************************************************************************/
 
-void CmndBacklog(void)
-{
+void CmndBacklog(void) {
+  // Backlog command1;command2;..   Execute commands in sequence with a delay in between set with SetOption34
+  // Backlog0 command1;command2;..  Execute commands in sequence with no delay
+
   if (XdrvMailbox.data_len) {
+    if (0 == XdrvMailbox.index) {
+      TasmotaGlobal.backlog_nodelay = true;
+    }
 
 #ifdef SUPPORT_IF_STATEMENT
     char *blcommand = strtok(XdrvMailbox.data, ";");
