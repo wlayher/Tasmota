@@ -805,6 +805,10 @@ void WSContentSendStyle(void)
   WSContentSendStyle_P(nullptr);
 }
 
+void WSContentTextCenterStart(uint32_t color) {
+  WSContentSend_P(PSTR("<div style='text-align:center;color:#%06x;'>"), color);
+}
+
 void WSContentButton(uint32_t title_index, bool show=true)
 {
   char action[4];
@@ -834,6 +838,14 @@ void WSContentSpaceButton(uint32_t title_index, bool show=true)
 
 void WSContentSend_Temp(const char *types, float f_temperature) {
   WSContentSend_PD(HTTP_SNS_F_TEMP, types, Settings.flag2.temperature_resolution, &f_temperature, TempUnit());
+}
+
+void WSContentSend_Voltage(const char *types, float f_voltage) {
+  WSContentSend_PD(HTTP_SNS_F_VOLTAGE, types, Settings.flag2.voltage_resolution, &f_voltage);
+}
+
+void WSContentSend_CurrentMA(const char *types, float f_current) {
+  WSContentSend_PD(HTTP_SNS_F_CURRENT_MA, types, Settings.flag2.current_resolution, &f_current);
 }
 
 void WSContentSend_THD(const char *types, float f_temperature, float f_humidity)
@@ -897,9 +909,11 @@ void WebRestart(uint32_t type)
       WSContentSend_P(PSTR("<div style='text-align:center;'><b>%s</b><br><br></div>"), (type==2) ? PSTR(D_TRYING_TO_CONNECT) : PSTR(D_CONFIGURATION_SAVED) );
     } else {
 #if (AFTER_INITIAL_WIFI_CONFIG_GO_TO_NEW_IP)
-      WSContentSend_P(PSTR("<div style='text-align:center;color:#%06x;'>" D_SUCCESSFUL_WIFI_CONNECTION "<br><br></div><div style='text-align:center;'>" D_REDIRECTING_TO_NEW_IP "<br><br></div>"), WebColor(COL_TEXT_SUCCESS) );
+      WSContentTextCenterStart(WebColor(COL_TEXT_SUCCESS));
+      WSContentSend_P(PSTR(D_SUCCESSFUL_WIFI_CONNECTION "<br><br></div><div style='text-align:center;'>" D_REDIRECTING_TO_NEW_IP "<br><br></div>"));
 #else
-      WSContentSend_P(PSTR("<div style='text-align:center;color:#%06x;'>" D_SUCCESSFUL_WIFI_CONNECTION "<br><br></div><div style='text-align:center;'>" D_NOW_YOU_CAN_CLOSE_THIS_WINDOW "<br><br></div>"), WebColor(COL_TEXT_SUCCESS) );
+      WSContentTextCenterStart(WebColor(COL_TEXT_SUCCESS));
+      WSContentSend_P(PSTR(D_SUCCESSFUL_WIFI_CONNECTION "<br><br></div><div style='text-align:center;'>" D_NOW_YOU_CAN_CLOSE_THIS_WINDOW "<br><br></div>"));
 #endif
     }
   }
@@ -1808,7 +1822,10 @@ void HandleWifiConfiguration(void) {
         uint32_t networksToShow = n;
         if ((limitScannedNetworks) && (networksToShow > MAX_WIFI_NETWORKS_TO_SHOW)) { networksToShow = MAX_WIFI_NETWORKS_TO_SHOW; }
 
-        if (WifiIsInManagerMode()) { WSContentSend_P(PSTR("<div style='text-align:center;color:#%06x;'>" D_SELECT_YOUR_WIFI_NETWORK "</div><br>"), WebColor(COL_TEXT)); }
+        if (WifiIsInManagerMode()) {
+          WSContentTextCenterStart(WebColor(COL_TEXT));
+          WSContentSend_P(PSTR(D_SELECT_YOUR_WIFI_NETWORK "</div><br>"));
+        }
 
 #ifdef USE_ENHANCED_GUI_WIFI_SCAN
         //display networks in page
@@ -1917,7 +1934,9 @@ void HandleWifiConfiguration(void) {
 
   if (WifiIsInManagerMode()) {
 #ifndef FIRMWARE_MINIMAL
-    WSContentSend_P(PSTR("<div style='text-align:center;color:#%06x;'><h3>"), WebColor(COL_TEXT_WARNING));
+    WSContentTextCenterStart(WebColor(COL_TEXT_WARNING));
+    WSContentSend_P(PSTR("<h3>"));
+
     if (WIFI_TESTING == Web.wifiTest) {
       WSContentSend_P(PSTR(D_TRYING_TO_CONNECT "<br>%s</h3></div>"), SettingsText(SET_STASSID1));
     } else if (WIFI_TEST_FINISHED_BAD == Web.wifiTest) {
