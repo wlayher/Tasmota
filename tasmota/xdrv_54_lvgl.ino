@@ -314,7 +314,7 @@ void start_lvgl(const char * uconfig) {
     return;
   }
 
-  if (uconfig && !renderer) {
+  if (!renderer || uconfig) {
 #ifdef USE_UNIVERSAL_DISPLAY    // TODO - we will probably support only UNIV_DISPLAY
     renderer  = Init_uDisplay((char*)uconfig, -1);
     if (!renderer) return;
@@ -322,6 +322,8 @@ void start_lvgl(const char * uconfig) {
     return;
 #endif
   }
+
+  renderer->DisplayOnff(true);
 
   // **************************************************
   // Initialize the glue between Adafruit and LVGL
