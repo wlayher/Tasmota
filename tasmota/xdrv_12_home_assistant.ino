@@ -362,8 +362,8 @@ void TryResponseAppend_P(const char *format, ...)
   char dummy[2];
   int dlen = vsnprintf_P(dummy, 1, format, args);
 
-  int mlen = strlen(TasmotaGlobal.mqtt_data);
-  int slen = sizeof(TasmotaGlobal.mqtt_data) - 1 - mlen;
+  int mlen = ResponseLength();
+  int slen = ResponseSize() - 1 - mlen;
   if (dlen >= slen)
   {
     AddLog_P(LOG_LEVEL_ERROR, PSTR("%s (%u/%u):"), kHAssError1, dlen, slen);
@@ -876,7 +876,7 @@ void HAssAnnounceSensors(void)
     TasmotaGlobal.tele_period = 2;                                 // Do not allow HA updates during next function call
     XsnsNextCall(FUNC_JSON_APPEND, hass_xsns_index); // ,"INA219":{"Voltage":4.494,"Current":0.020,"Power":0.089}
     TasmotaGlobal.tele_period = tele_period_save;
-    size_t sensordata_len = strlen(TasmotaGlobal.mqtt_data);
+    size_t sensordata_len = ResponseLength();
     char sensordata[sensordata_len+2];   // dynamically adjust the size
     strcpy(sensordata, TasmotaGlobal.mqtt_data);    // we can use strcpy since the buffer has the right size
 

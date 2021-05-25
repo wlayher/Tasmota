@@ -656,6 +656,11 @@
 //    #define USE_DISPLAY_SH1106                   // [DisplayModel 7] [I2cDriver6] Enable SH1106 Oled 128x64 display (I2C addresses 0x3C and 0x3D)
 #endif  // USE_I2C
 
+
+// -- Universal Display Driver ---------------------------------
+// #define USE_UNIVERSAL_DISPLAY                   // New universal display driver for both I2C and SPI
+    #define MAX_TOUCH_BUTTONS 16                  // Virtual touch buttons
+
 // -- SPI sensors ---------------------------------
 //#define USE_SPI                                  // Hardware SPI using GPIO12(MISO), GPIO13(MOSI) and GPIO14(CLK) in addition to two user selectable GPIOs(CS and DC)
 
@@ -806,6 +811,10 @@
   #define USE_ZIGBEE_MANUFACTURER "Tasmota"      // reported "Manufacturer" (cluster 0000 / attribute 0004)
   #define USE_ZBBRIDGE_TLS                       // TLS support for zbbridge
   #define USE_ZIGBEE_ZBBRIDGE_EEPROM 0x50        // I2C id for the ZBBridge EEPROM
+  // #define USE_ZIGBEE_FORCE_NO_CHILDREN           // This feature forces `CONFIG_MAX_END_DEVICE_CHILDREN` to zero which means that the coordinator does not accept any direct child. End-devices must pair through a router.
+                                                 // This may mitigate some battery drain issues with IKEA devices.
+                                                 // **DO NOT USE UNLESS YOU KNOW EXACTLY WHAT YOU'RE DOING** See #10413
+
 
   // Auto-binding constants, see `Z_autoAttributeReporting`
   // Below are the threshold for attribute reporting
