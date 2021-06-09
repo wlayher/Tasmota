@@ -108,6 +108,9 @@ typedef struct OT_BOILER_STATUS_T
     // Boiler desired values
     float m_boilerSetpoint;
     float m_hotWaterSetpoint;
+    // This flag is set when Master require a CH to be on
+    // and forces the OpenThermMessageID::TSet to be sent to the boiler
+    bool m_forceSetpointSet;
 
 } OT_BOILER_STATUS;
 
@@ -216,8 +219,6 @@ bool sns_opentherm_Init()
         sns_ot_master = new OpenTherm(Pin(GPIO_BOILER_OT_RX), Pin(GPIO_BOILER_OT_TX));
         sns_ot_master->begin(sns_opentherm_handleInterrupt, sns_opentherm_processResponseCallback);
         sns_ot_connection_status = OpenThermConnectionStatus::OTC_CONNECTING;
-
-        sns_opentherm_init_boiler_status();
         return true;
     }
     return false;
@@ -341,7 +342,7 @@ void sns_ot_process_handshake(unsigned long response, int st)
     sns_ot_connection_status = OpenThermConnectionStatus::OTC_READY;
 }
 
-void sns_opentherm_CheckSettings(void)
+void sns_opentherm_check_settings(void)
 {
     bool settingsValid = true;
 
@@ -547,7 +548,8 @@ bool Xsns69(uint8_t function)
     {
         if (sns_opentherm_Init())
         {
-            sns_opentherm_CheckSettings();
+            sns_opentherm_check_settings();
+            sns_opentherm_init_boiler_status();
         }
     }
 
@@ -595,6 +597,9 @@ bool Xsns69(uint8_t function)
         break;
     case FUNC_JSON_APPEND:
         sns_opentherm_stat(1);
+        break;
+    case FUNC_SAVE_AT_MIDNIGHT:
+        sns_opentherm_protocol_reset();
         break;
 #ifdef USE_WEBSERVER
     case FUNC_WEB_SENSOR:

@@ -767,9 +767,10 @@ void MqttShowState(void)
 
   if (!TasmotaGlobal.global_state.wifi_down) {
     int32_t rssi = WiFi.RSSI();
-    ResponseAppend_P(PSTR(",\"" D_JSON_WIFI "\":{\"" D_JSON_AP "\":%d,\"" D_JSON_SSID "\":\"%s\",\"" D_JSON_BSSID "\":\"%s\",\"" D_JSON_CHANNEL "\":%d,\"" D_JSON_RSSI "\":%d,\"" D_JSON_SIGNAL "\":%d,\"" D_JSON_LINK_COUNT "\":%d,\"" D_JSON_DOWNTIME "\":\"%s\"}"),
+    ResponseAppend_P(PSTR(",\"" D_JSON_WIFI "\":{\"" D_JSON_AP "\":%d,\"" D_JSON_SSID "\":\"%s\",\"" D_JSON_BSSID "\":\"%s\",\"" D_JSON_CHANNEL "\":%d,\"" D_JSON_WIFI_MODE "\":\"11%c\",\"" D_JSON_RSSI "\":%d,\"" D_JSON_SIGNAL "\":%d,\"" D_JSON_LINK_COUNT "\":%d,\"" D_JSON_DOWNTIME "\":\"%s\"}"),
       Settings.sta_active +1, EscapeJSONString(SettingsText(SET_STASSID1 + Settings.sta_active)).c_str(), WiFi.BSSIDstr().c_str(), WiFi.channel(),
-      WifiGetRssiAsQuality(rssi), rssi, WifiLinkCount(), WifiDowntime().c_str());
+      pgm_read_byte(&kWifiPhyMode[WiFi.getPhyMode() & 0x3]), WifiGetRssiAsQuality(rssi), rssi,
+      WifiLinkCount(), WifiDowntime().c_str());
   }
 
   ResponseJsonEnd();
@@ -1136,7 +1137,7 @@ void Every250mSeconds(void)
             char *bch = strrchr(full_ota_url, '/');         // Only consider filename after last backslash prevent change of urls having "-" in it
             if (bch == nullptr) { bch = full_ota_url; }     // No path found so use filename only
             char *ech = strchr(bch, '.');                              // Find file type in filename (none, .ino.bin, .ino.bin.gz, .bin, .bin.gz or .gz)
-            if (ech == nullptr) { ech = full_ota_url + strlen(full_ota_url); }  // Point to '/0' at end of mqtt_data becoming an empty string
+            if (ech == nullptr) { ech = full_ota_url + strlen(full_ota_url); }  // Point to '/0' at end of full_ota_url becoming an empty string
 
 //AddLog(LOG_LEVEL_DEBUG, PSTR("OTA: File type [%s]"), ech);
 
@@ -1145,7 +1146,7 @@ void Every250mSeconds(void)
 
             char *pch = strrchr(bch, '-');                             // Find last dash (-) and ignore remainder - handles tasmota-DE
             if (pch == nullptr) { pch = ech; }                         // No dash so ignore filetype
-            *pch = '\0';                                               // mqtt_data = http://domus1:80/api/arduino/tasmota
+            *pch = '\0';                                               // full_ota_url = http://domus1:80/api/arduino/tasmota
             snprintf_P(full_ota_url, sizeof(full_ota_url), PSTR("%s-" D_JSON_MINIMAL "%s"), full_ota_url, ota_url_type);  // Minimal filename must be filename-minimal
           }
 #endif  // FIRMWARE_MINIMAL
@@ -1553,7 +1554,7 @@ void SerialInput(void)
       if (serial_buffer_overrun) {
         AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_COMMAND "Serial buffer overrun"));
       } else {
-        AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_COMMAND "%s"), TasmotaGlobal.serial_in_buffer);
+        AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_COMMAND "%s"), TasmotaGlobal.serial_in_buffer);
         ExecuteCommand(TasmotaGlobal.serial_in_buffer, SRC_SERIAL);
       }
       TasmotaGlobal.serial_in_byte_counter = 0;
@@ -1814,11 +1815,19 @@ void GpioInit(void)
     }
     // Set any non-used GPIO to INPUT - Related to resetPins() in support_legacy_cores.ino
     // Doing it here solves relay toggles at restart.
+#if CONFIG_IDF_TARGET_ESP32C3
+    else if (((i < 11) || (i > 17)) && (GPIO_NONE == mpin)) {  // Skip SPI flash interface
+      if (!((20 == i) || (21 == i))) {             // Skip serial
+        pinMode(i, INPUT);
+      }
+    }
+#else // CONFIG_IDF_TARGET_ESP32C3
     else if (((i < 6) || (i > 11)) && (GPIO_NONE == mpin)) {  // Skip SPI flash interface
       if (!((1 == i) || (3 == i))) {             // Skip serial
         pinMode(i, INPUT);
       }
     }
+#endif // CONFIG_IDF_TARGET_ESP32C3
   }
 
   // Digital input

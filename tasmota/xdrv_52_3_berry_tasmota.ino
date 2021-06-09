@@ -97,7 +97,11 @@ extern "C" {
       const char * command = be_tostring(vm, 2);
       be_pop(vm, 2);    // clear the stack before calling, because of re-entrant call to Berry in a Rule
       ExecuteCommand(command, SRC_BERRY);
+#ifdef MQTT_DATA_STRING
+      be_pushstring(vm, TasmotaGlobal.mqtt_data.c_str());
+#else
       be_pushstring(vm, TasmotaGlobal.mqtt_data);
+#endif
       be_return(vm); // Return
     }
     be_raise(vm, kTypeError, nullptr);
@@ -382,7 +386,7 @@ extern "C" {
         log_level = be_toint(vm, 3);
         if (log_level > LOG_LEVEL_DEBUG_MORE) { log_level = LOG_LEVEL_DEBUG_MORE; }
       }
-      AddLog_P(log_level, PSTR("%s"), msg);
+      AddLog(log_level, PSTR("%s"), msg);
       be_return(vm); // Return
     }
     be_return_nil(vm); // Return nil when something goes wrong
@@ -425,7 +429,7 @@ void berry_log(const char * berry_buf) {
   }
   // AddLog(LOG_LEVEL_INFO, PSTR("[Add to log] %s"), berry_buf);
   berry.log.addString(berry_buf, pre_delimiter, "\n");
-  AddLog_P(LOG_LEVEL_INFO, PSTR("%s"), berry_buf);
+  AddLog(LOG_LEVEL_INFO, PSTR("%s"), berry_buf);
 }
 
 extern "C" {

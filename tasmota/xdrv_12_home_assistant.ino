@@ -65,9 +65,11 @@ const char HASS_DISCOVER_SENSOR_LWT[] PROGMEM =
 
 const char HASS_DISCOVER_RELAY[] PROGMEM =
   ",\"cmd_t\":\"%s\","                            // cmnd/dualr2/POWER2
-  "\"val_tpl\":\"{{value_json.%s}}\","            // POWER2
   "\"pl_off\":\"%s\","                            // OFF
   "\"pl_on\":\"%s\"";                             // ON
+
+const char HASS_DISCOVER_RELAY_TEMPLATE[] PROGMEM =
+  ",\"val_tpl\":\"{{value_json.%s}}\"";           // POWER2
 
 const char HASS_DISCOVER_BIN_SWITCH[] PROGMEM =
   ",\"val_tpl\":\"{{value_json.%s}}\","           // STATE
@@ -80,6 +82,9 @@ const char HASS_DISCOVER_BIN_PIR[] PROGMEM =
   "\"frc_upd\":true,"                             // In ON/OFF case, enable force_update to make automations work
   "\"pl_on\":\"%s\","                             // ON
   "\"off_dly\":1";                                // Switchmode13 and Switchmode14 doesn't transmit an OFF state.
+
+const char HASS_DISCOVER_LIGHT_TEMPLATE[] PROGMEM =
+  ",\"stat_val_tpl\":\"{{value_json.%s}}\"";      // POWER2
 
 const char HASS_DISCOVER_BASE_LIGHT[] PROGMEM =
   ",\"bri_cmd_t\":\"%s\","                        // cmnd/led2/Dimmer
@@ -355,8 +360,17 @@ void NewHAssDiscovery(void)
 
 // NEW DISCOVERY
 
-void TryResponseAppend_P(const char *format, ...)
-{
+void TryResponseAppend_P(const char *format, ...) {
+#ifdef MQTT_DATA_STRING
+  va_list arg;
+  va_start(arg, format);
+  char* mqtt_data = ext_vsnprintf_malloc_P(format, arg);
+  va_end(arg);
+  if (mqtt_data != nullptr) {
+    TasmotaGlobal.mqtt_data += mqtt_data;
+    free(mqtt_data);
+  }
+#else
   va_list args;
   va_start(args, format);
   char dummy[2];
@@ -366,7 +380,7 @@ void TryResponseAppend_P(const char *format, ...)
   int slen = ResponseSize() - 1 - mlen;
   if (dlen >= slen)
   {
-    AddLog_P(LOG_LEVEL_ERROR, PSTR("%s (%u/%u):"), kHAssError1, dlen, slen);
+    AddLog(LOG_LEVEL_ERROR, PSTR("%s (%u/%u):"), kHAssError1, dlen, slen);
     va_start(args, format);
     char log_data[MAX_LOGSZ];
     vsnprintf_P(log_data, sizeof(log_data), format, args);
@@ -378,6 +392,7 @@ void TryResponseAppend_P(const char *format, ...)
     vsnprintf_P(TasmotaGlobal.mqtt_data + mlen, slen, format, args);
   }
   va_end(args);
+#endif
 }
 
 void HAssAnnounceRelayLight(void)
@@ -469,7 +484,7 @@ void HAssAnnounceRelayLight(void)
       // suppress shutter relays
     } else if ((i < Light.device) && !RelayX) {
       err_flag = true;
-      AddLog_P(LOG_LEVEL_ERROR, PSTR("%s"), kHAssError2);
+      AddLog(LOG_LEVEL_ERROR, PSTR("%s"), kHAssError2);
     } else {
       if (Settings.flag.hass_discovery && (RelayX || (Light.device > 0) && (max_lights > 0)) && !err_flag )
       {                    // SetOption19 - Control Home Assistant automatic discovery (See SetOption59)
@@ -494,7 +509,12 @@ void HAssAnnounceRelayLight(void)
           GetTopic_P(availability_topic, TELE, TasmotaGlobal.mqtt_topic, S_LWT);
           Response_P(HASS_DISCOVER_BASE, name, state_topic);
           TryResponseAppend_P(HASS_DISCOVER_SENSOR_LWT, availability_topic);
-          TryResponseAppend_P(HASS_DISCOVER_RELAY, command_topic, value_template, SettingsText(SET_STATE_TXT1), SettingsText(SET_STATE_TXT2));
+          TryResponseAppend_P(HASS_DISCOVER_RELAY, command_topic, SettingsText(SET_STATE_TXT1), SettingsText(SET_STATE_TXT2));
+          if (is_topic_light) {
+            TryResponseAppend_P(HASS_DISCOVER_LIGHT_TEMPLATE, value_template);
+          } else {
+            TryResponseAppend_P(HASS_DISCOVER_RELAY_TEMPLATE, value_template);
+          }
           TryResponseAppend_P(HASS_DISCOVER_DEVICE_INFO_SHORT, unique_id, ESP_getChipId());
 
   #ifdef USE_LIGHT
@@ -878,7 +898,11 @@ void HAssAnnounceSensors(void)
     TasmotaGlobal.tele_period = tele_period_save;
     size_t sensordata_len = ResponseLength();
     char sensordata[sensordata_len+2];   // dynamically adjust the size
+#ifdef MQTT_DATA_STRING
+    strcpy(sensordata, TasmotaGlobal.mqtt_data.c_str());    // we can use strcpy since the buffer has the right size
+#else
     strcpy(sensordata, TasmotaGlobal.mqtt_data);    // we can use strcpy since the buffer has the right size
+#endif
 
     // ******************* JSON TEST *******************
     // char sensordata[512];
@@ -898,7 +922,7 @@ void HAssAnnounceSensors(void)
       JsonParserObject root = parser.getRootObject();
       if (!root)
       {
-        AddLog_P(LOG_LEVEL_ERROR, PSTR("%s '%s' (ERR1)"), kHAssError3, sensordata);
+        AddLog(LOG_LEVEL_ERROR, PSTR("%s '%s' (ERR1)"), kHAssError3, sensordata);
         continue;
       }
       for (auto sensor_key : root)
@@ -909,7 +933,7 @@ void HAssAnnounceSensors(void)
 
         if (!sensors)
         {
-          AddLog_P(LOG_LEVEL_ERROR, PSTR("%s '%s' (ERR2)"), kHAssError3, sensorname);
+          AddLog(LOG_LEVEL_ERROR, PSTR("%s '%s' (ERR2)"), kHAssError3, sensorname);
           continue;
         }
 
