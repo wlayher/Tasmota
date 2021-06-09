@@ -433,7 +433,7 @@ void TuyaSendCmd(uint8_t cmd, uint8_t payload[] = nullptr, uint16_t payload_len 
   TuyaSerial->write(cmd);                   // Tuya command
   TuyaSerial->write(payload_len >> 8);      // following data length (Hi)
   TuyaSerial->write(payload_len & 0xFF);    // following data length (Lo)
-  char log_data[MAX_LOGSZ];
+  char log_data[700];                       // Was MAX_LOGSZ
   snprintf_P(log_data, sizeof(log_data), PSTR("TYA: Send \"55aa00%02x%02x%02x"), cmd, payload_len >> 8, payload_len & 0xFF);
   for (uint32_t i = 0; i < payload_len; ++i) {
     TuyaSerial->write(payload[i]);
@@ -1227,7 +1227,11 @@ void TuyaSerialInput(void)
       if (Settings.flag3.tuya_serial_mqtt_publish) {  // SetOption66 - Enable TuyaMcuReceived messages over Mqtt
         MqttPublishPrefixTopic_P(RESULT_OR_TELE, PSTR(D_JSON_TUYA_MCU_RECEIVED));
       } else {
-        AddLog_P(LOG_LEVEL_DEBUG, TasmotaGlobal.mqtt_data);
+#ifdef MQTT_DATA_STRING
+        AddLog(LOG_LEVEL_DEBUG, TasmotaGlobal.mqtt_data.c_str());
+#else
+        AddLog(LOG_LEVEL_DEBUG, TasmotaGlobal.mqtt_data);
+#endif
       }
       XdrvRulesProcess(0);
 

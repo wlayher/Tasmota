@@ -146,6 +146,15 @@ const char HTTP_MODULE_TEMPLATE_REPLACE_NO_INDEX[] PROGMEM =
   #include "./html_uncompressed/HTTP_SCRIPT_TEMPLATE.h"
 #endif
 
+#if defined(ESP32) && CONFIG_IDF_TARGET_ESP32C3
+const char HTTP_SCRIPT_TEMPLATE2[] PROGMEM =
+    "j=0;"
+    "for(i=0;i<" STR(MAX_USER_PINS) ";i++){"  // Skip GPIO 11-17
+      "if(11==i){j=18;}"
+      "sk(g[i],j);"                       // Set GPIO
+      "j++;"
+    "}";
+#else // Now ESP32 and ESP8266
 const char HTTP_SCRIPT_TEMPLATE2[] PROGMEM =
     "j=0;"
     "for(i=0;i<" STR(MAX_USER_PINS) ";i++){"  // Supports 13 GPIOs
@@ -154,6 +163,7 @@ const char HTTP_SCRIPT_TEMPLATE2[] PROGMEM =
       "sk(g[i],j);"                       // Set GPIO
       "j++;"
     "}";
+#endif
 const char HTTP_SCRIPT_TEMPLATE3[] PROGMEM =
     "\";"
     "sk(g[13]," STR(ADC0_PIN) ");";       // Set ADC0
@@ -405,7 +415,7 @@ struct WEB {
   uint8_t wifiTest = WIFI_NOT_TESTING;
   uint8_t wifi_test_counter = 0;
   uint16_t save_data_counter = 0;
-  uint8_t old_wificonfig = WIFI_MANAGER;
+  uint8_t old_wificonfig = MAX_WIFI_OPTION; // means "nothing yet saved here"
 } Web;
 
 // Helper function to avoid code duplication (saves 4k Flash)
@@ -704,14 +714,27 @@ void WSContentFlush(void) {
   }
 }
 
-void _WSContentSendBuffer(const char* content) {
+void WSContentSend(const char* content, size_t size) {
+  WSContentFlush();
+  _WSContentSend(content, size);
+}
+
+void _WSContentSendBuffer(bool decimal, const char * formatP, va_list arg) {
+  char* content = ext_vsnprintf_malloc_P(formatP, arg);
   if (content == nullptr) { return; }              // Avoid crash
 
   int len = strlen(content);
-  if (0 == len) {                                  // No content
-    return;
+  if (0 == len) { return; }                        // No content
+
+  if (decimal && (D_DECIMAL_SEPARATOR[0] != '.')) {
+    for (uint32_t i = 0; i < len; i++) {
+      if ('.' == content[i]) {
+        content[i] = D_DECIMAL_SEPARATOR[0];
+      }
+    }
   }
-  else if (len < CHUNKED_BUFFER_SIZE) {            // Append chunk buffer with small content
+
+  if (len < CHUNKED_BUFFER_SIZE) {                 // Append chunk buffer with small content
     Web.chunk_buffer += content;
     len = Web.chunk_buffer.length();
   }
@@ -722,43 +745,24 @@ void _WSContentSendBuffer(const char* content) {
   if (strlen(content) >= CHUNKED_BUFFER_SIZE) {    // Content is oversize
     _WSContentSend(content);                       // Send content
   }
-}
 
-void WSContentSend(const char* content, size_t size) {
-  WSContentFlush();
-  _WSContentSend(content, size);
+  free(content);
 }
 
 void WSContentSend_P(const char* formatP, ...) {   // Content send snprintf_P char data
   // This uses char strings. Be aware of sending %% if % is needed
   va_list arg;
   va_start(arg, formatP);
-  char* content = ext_vsnprintf_malloc_P(formatP, arg);
+  _WSContentSendBuffer(false, formatP, arg);
   va_end(arg);
-
-  _WSContentSendBuffer(content);
-  free(content);
 }
 
 void WSContentSend_PD(const char* formatP, ...) {  // Content send snprintf_P char data checked for decimal separator
   // This uses char strings. Be aware of sending %% if % is needed
   va_list arg;
   va_start(arg, formatP);
-  char* content = ext_vsnprintf_malloc_P(formatP, arg);
+  _WSContentSendBuffer(true, formatP, arg);
   va_end(arg);
-
-  if (D_DECIMAL_SEPARATOR[0] != '.') {
-    if (content == nullptr) { return; }            // Avoid crash
-    size_t len = strlen(content);
-    for (uint32_t i = 0; i < len; i++) {
-      if ('.' == content[i]) {
-        content[i] = D_DECIMAL_SEPARATOR[0];
-      }
-    }
-  }
-
-  _WSContentSendBuffer(content);
-  free(content);
 }
 
 void WSContentStart_P(const char* title, bool auth)
@@ -800,11 +804,8 @@ void WSContentSendStyle_P(const char* formatP, ...)
     // This uses char strings. Be aware of sending %% if % is needed
     va_list arg;
     va_start(arg, formatP);
-    char* content = ext_vsnprintf_malloc_P(formatP, arg);
+    _WSContentSendBuffer(false, formatP, arg);
     va_end(arg);
-
-    _WSContentSendBuffer(content);
-    free(content);
   }
   WSContentSend_P(HTTP_HEAD_STYLE3, WebColor(COL_TEXT),
 #ifdef FIRMWARE_MINIMAL
@@ -1592,7 +1593,7 @@ void HandleTemplateConfiguration(void) {
   for (uint32_t i = 0; i < MAX_GPIO_PIN; i++) {
     if (!FlashPin(i)) {
       WSContentSend_P(PSTR("<tr><td><b><font color='#%06x'>" D_GPIO "%d</font></b></td><td%s><select id='g%d' onchange='ot(%d,this.value)'></select></td>"),
-        ((9==i)||(10==i)) ? WebColor(COL_TEXT_WARNING) : WebColor(COL_TEXT), i, (0==i) ? PSTR(" style='width:146px'") : "", i, i);
+        RedPin(i) ? WebColor(COL_TEXT_WARNING) : WebColor(COL_TEXT), i, (0==i) ? PSTR(" style='width:146px'") : "", i, i);
       WSContentSend_P(PSTR("<td style='width:54px'><select id='h%d'></select></td></tr>"), i);
     }
   }
@@ -1782,9 +1783,8 @@ void HandleWifiConfiguration(void) {
       TasmotaGlobal.save_data_counter = 0;               // Stop auto saving data - Updating Settings
       Settings.save_data = 0;
 
-      Web.old_wificonfig = TasmotaGlobal.wifi_state_flag;
-      Settings.sta_config = WIFI_MANAGER;
-      TasmotaGlobal.wifi_state_flag = Settings.sta_config;
+      if (MAX_WIFI_OPTION == Web.old_wificonfig) { Web.old_wificonfig = Settings.sta_config; }
+      TasmotaGlobal.wifi_state_flag = Settings.sta_config = WIFI_MANAGER;
 
       TasmotaGlobal.sleep = 0;                           // Disable sleep
       TasmotaGlobal.restart_flag = 0;                    // No restart
@@ -2080,7 +2080,11 @@ void HandleOtherConfiguration(void) {
   WSContentSendStyle();
 
   TemplateJson();
+#ifdef MQTT_DATA_STRING
+  WSContentSend_P(HTTP_FORM_OTHER, TasmotaGlobal.mqtt_data.c_str(), (USER_MODULE == Settings.module) ? PSTR(" checked disabled") : "",
+#else
   WSContentSend_P(HTTP_FORM_OTHER, TasmotaGlobal.mqtt_data, (USER_MODULE == Settings.module) ? PSTR(" checked disabled") : "",
+#endif
     (Settings.flag.mqtt_enabled) ? PSTR(" checked") : "",   // SetOption3 - Enable MQTT
     SettingsText(SET_FRIENDLYNAME1), SettingsText(SET_DEVICENAME));
 
@@ -2267,7 +2271,7 @@ void HandleInformation(void)
 #endif
   if (Settings.flag4.network_wifi) {
     int32_t rssi = WiFi.RSSI();
-    WSContentSend_P(PSTR("}1" D_AP "%d " D_SSID " (" D_RSSI ")}2%s (%d%%, %d dBm)"), Settings.sta_active +1, HtmlEscape(SettingsText(SET_STASSID1 + Settings.sta_active)).c_str(), WifiGetRssiAsQuality(rssi), rssi);
+    WSContentSend_P(PSTR("}1" D_AP "%d " D_SSID " (" D_RSSI ")}2%s (%d%%, %d dBm) 11%c"), Settings.sta_active +1, HtmlEscape(SettingsText(SET_STASSID1 + Settings.sta_active)).c_str(), WifiGetRssiAsQuality(rssi), rssi, pgm_read_byte(&kWifiPhyMode[WiFi.getPhyMode() & 0x3]) );
     WSContentSend_P(PSTR("}1" D_HOSTNAME "}2%s%s"), TasmotaGlobal.hostname, (Mdns.begun) ? PSTR(".local") : "");
 #if LWIP_IPV6
     String ipv6_addr = WifiGetIPv6();
@@ -2891,7 +2895,7 @@ void HandleConsoleRefresh(void)
 {
   String svalue = Webserver->arg(F("c1"));
   if (svalue.length() && (svalue.length() < MQTT_MAX_PACKET_SIZE)) {
-    AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_COMMAND "%s"), svalue.c_str());
+    AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_COMMAND "%s"), svalue.c_str());
     ExecuteWebCommand((char*)svalue.c_str(), SRC_WEBCONSOLE);
   }
 
@@ -3256,14 +3260,15 @@ bool Xdrv01(uint8_t function)
       }
       if (Web.wifi_test_counter) {
         Web.wifi_test_counter--;
-        AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_WIFI D_TRYING_TO_CONNECT " %s"), SettingsText(SET_STASSID1));
+        AddLog(LOG_LEVEL_DEBUG, PSTR(D_LOG_WIFI D_TRYING_TO_CONNECT " %s"), SettingsText(SET_STASSID1));
         if ( WifiCheck_hasIP(WiFi.localIP()) ) {  // Got IP - Connection Established
           Web.wifi_test_counter = 0;
           Web.wifiTest = WIFI_TEST_FINISHED_SUCCESSFUL;
-          AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_WIFI D_CMND_SSID "1 %s: " D_CONNECTED " - " D_IP_ADDRESS " %_I"), SettingsText(SET_STASSID1), (uint32_t)WiFi.localIP());
+          AddLog(LOG_LEVEL_INFO, PSTR(D_LOG_WIFI D_CMND_SSID "1 %s: " D_CONNECTED " - " D_IP_ADDRESS " %_I"), SettingsText(SET_STASSID1), (uint32_t)WiFi.localIP());
 //          TasmotaGlobal.blinks = 255;                    // Signal wifi connection with blinks
-          Settings.sta_config = Web.old_wificonfig;
-          TasmotaGlobal.wifi_state_flag = Settings.sta_config;
+          if (MAX_WIFI_OPTION != Web.old_wificonfig) {
+            TasmotaGlobal.wifi_state_flag = Settings.sta_config = Web.old_wificonfig;
+          }
           TasmotaGlobal.save_data_counter = Web.save_data_counter;
           Settings.save_data = Web.save_data_counter;
           SettingsSaveAll();

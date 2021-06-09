@@ -985,6 +985,7 @@ String GetSerialConfig(void) {
 }
 
 uint32_t GetSerialBaudrate(void) {
+  // Serial.printf(">> GetSerialBaudrate baudrate = %d\n", Serial.baudRate());
   return (Serial.baudRate() / 300) * 300;  // Fix ESP32 strange results like 115201
 }
 
@@ -1018,7 +1019,9 @@ void SetSerialBaudrate(uint32_t baudrate) {
   TasmotaGlobal.baudrate = baudrate;
   Settings.baudrate = TasmotaGlobal.baudrate / 300;
   if (GetSerialBaudrate() != TasmotaGlobal.baudrate) {
+#if defined(CONFIG_IDF_TARGET_ESP32C3) && !CONFIG_IDF_TARGET_ESP32C3    // crashes on ESP32C3 - TODO
     SetSerialBegin();
+#endif
   }
 }
 
@@ -1170,36 +1173,80 @@ char* ResponseGetTime(uint32_t format, char* time_str)
 }
 
 uint32_t ResponseSize(void) {
+#ifdef MQTT_DATA_STRING
+  return MESSZ;
+#else
   return sizeof(TasmotaGlobal.mqtt_data);
+#endif
 }
 
 uint32_t ResponseLength(void) {
+#ifdef MQTT_DATA_STRING
+  return TasmotaGlobal.mqtt_data.length();
+#else
   return strlen(TasmotaGlobal.mqtt_data);
+#endif
 }
 
 void ResponseClear(void) {
   // Reset string length to zero
+#ifdef MQTT_DATA_STRING
+  TasmotaGlobal.mqtt_data = "";
+#else
   TasmotaGlobal.mqtt_data[0] = '\0';
+#endif
 }
 
 void ResponseJsonStart(void) {
   // Insert a JSON start bracket {
+#ifdef MQTT_DATA_STRING
+  TasmotaGlobal.mqtt_data.setCharAt(0,'{');
+#else
   TasmotaGlobal.mqtt_data[0] = '{';
+#endif
 }
 
 int Response_P(const char* format, ...)        // Content send snprintf_P char data
 {
   // This uses char strings. Be aware of sending %% if % is needed
+#ifdef MQTT_DATA_STRING
+  va_list arg;
+  va_start(arg, format);
+  char* mqtt_data = ext_vsnprintf_malloc_P(format, arg);
+  va_end(arg);
+  if (mqtt_data != nullptr) {
+    TasmotaGlobal.mqtt_data = mqtt_data;
+    free(mqtt_data);
+  } else {
+    TasmotaGlobal.mqtt_data = "";
+  }
+  return TasmotaGlobal.mqtt_data.length();
+#else
   va_list args;
   va_start(args, format);
   int len = ext_vsnprintf_P(TasmotaGlobal.mqtt_data, ResponseSize(), format, args);
   va_end(args);
   return len;
+#endif
 }
 
 int ResponseTime_P(const char* format, ...)    // Content send snprintf_P char data
 {
   // This uses char strings. Be aware of sending %% if % is needed
+#ifdef MQTT_DATA_STRING
+  char timestr[100];
+  TasmotaGlobal.mqtt_data = ResponseGetTime(Settings.flag2.time_format, timestr);
+
+  va_list arg;
+  va_start(arg, format);
+  char* mqtt_data = ext_vsnprintf_malloc_P(format, arg);
+  va_end(arg);
+  if (mqtt_data != nullptr) {
+    TasmotaGlobal.mqtt_data += mqtt_data;
+    free(mqtt_data);
+  }
+  return TasmotaGlobal.mqtt_data.length();
+#else
   va_list args;
   va_start(args, format);
 
@@ -1209,17 +1256,30 @@ int ResponseTime_P(const char* format, ...)    // Content send snprintf_P char d
   int len = ext_vsnprintf_P(TasmotaGlobal.mqtt_data + mlen, ResponseSize() - mlen, format, args);
   va_end(args);
   return len + mlen;
+#endif
 }
 
 int ResponseAppend_P(const char* format, ...)  // Content send snprintf_P char data
 {
   // This uses char strings. Be aware of sending %% if % is needed
+#ifdef MQTT_DATA_STRING
+  va_list arg;
+  va_start(arg, format);
+  char* mqtt_data = ext_vsnprintf_malloc_P(format, arg);
+  va_end(arg);
+  if (mqtt_data != nullptr) {
+    TasmotaGlobal.mqtt_data += mqtt_data;
+    free(mqtt_data);
+  }
+  return TasmotaGlobal.mqtt_data.length();
+#else
   va_list args;
   va_start(args, format);
   int mlen = ResponseLength();
   int len = ext_vsnprintf_P(TasmotaGlobal.mqtt_data + mlen, ResponseSize() - mlen, format, args);
   va_end(args);
   return len + mlen;
+#endif
 }
 
 int ResponseAppendTimeFormat(uint32_t format)
@@ -1253,7 +1313,11 @@ int ResponseJsonEndEnd(void)
 }
 
 bool ResponseContains_P(const char* needle) {
+#ifdef MQTT_DATA_STRING
+  return (strstr_P(TasmotaGlobal.mqtt_data.c_str(), needle) != nullptr);
+#else
   return (strstr_P(TasmotaGlobal.mqtt_data, needle) != nullptr);
+#endif
 }
 
 /*********************************************************************************************\
@@ -1513,8 +1577,11 @@ void TemplateGpios(myio *gp)
 
   uint32_t j = 0;
   for (uint32_t i = 0; i < nitems(Settings.user_template.gp.io); i++) {
+#if defined(ESP32) && CONFIG_IDF_TARGET_ESP32C3
+#else
     if (6 == i) { j = 9; }
     if (8 == i) { j = 12; }
+#endif
     dest[j] = src[i];
     j++;
   }
@@ -1567,7 +1634,20 @@ void SetModuleType(void)
 
 bool FlashPin(uint32_t pin)
 {
+#if defined(ESP32) && CONFIG_IDF_TARGET_ESP32C3
+  return (pin > 10) && (pin < 18);        // ESP32C3 has GPIOs 11-17 reserved for Flash
+#else // ESP32 and ESP8266
   return (((pin > 5) && (pin < 9)) || (11 == pin));
+#endif
+}
+
+bool RedPin(uint32_t pin) // pin may be dangerous to change, display in RED in template console
+{
+#if defined(ESP32) && CONFIG_IDF_TARGET_ESP32C3
+  return false;     // no red pin on ESP32C3
+#else // ESP32 and ESP8266
+  return (9==pin)||(10==pin);
+#endif
 }
 
 uint32_t ValidPin(uint32_t pin, uint32_t gpio) {
@@ -1608,7 +1688,7 @@ bool JsonTemplate(char* dataBuf)
   // Old: {"NAME":"Shelly 2.5","GPIO":[56,0,17,0,21,83,0,0,6,82,5,22,156],"FLAG":2,"BASE":18}
   // New: {"NAME":"Shelly 2.5","GPIO":[320,0,32,0,224,193,0,0,640,192,608,225,3456,4736],"FLAG":0,"BASE":18}
 
-//  AddLog_P(LOG_LEVEL_DEBUG, PSTR("TPL: |%s|"), dataBuf);
+//  AddLog(LOG_LEVEL_DEBUG, PSTR("TPL: |%s|"), dataBuf);
 
   if (strlen(dataBuf) < 9) { return false; }  // Workaround exception if empty JSON like {} - Needs checks
 
@@ -2307,9 +2387,6 @@ void AddLogData(uint32_t loglevel, const char* log_data) {
     Serial.printf("%s%s\r\n", mxtime, log_data);
   }
 
-  uint32_t log_data_len = strlen(log_data) + strlen(mxtime) + 4;  // 4 = log_buffer_pointer + '\1' + '\0'
-  if (log_data_len > LOG_BUFFER_SIZE) { return; }                 // log_data too big for buffer - discard logging
-
   uint32_t highest_loglevel = Settings.weblog_level;
   if (Settings.mqttlog_level > highest_loglevel) { highest_loglevel = Settings.mqttlog_level; }
   if (TasmotaGlobal.syslog_level > highest_loglevel) { highest_loglevel = TasmotaGlobal.syslog_level; }
@@ -2320,12 +2397,18 @@ void AddLogData(uint32_t loglevel, const char* log_data) {
       (TasmotaGlobal.masterlog_level <= highest_loglevel)) {
     // Delimited, zero-terminated buffer of log lines.
     // Each entry has this format: [index][loglevel][log data]['\1']
+
+    uint32_t log_data_len = strlen(log_data);
+    if (log_data_len + 64 > LOG_BUFFER_SIZE) {
+      sprintf_P((char*)log_data + 128, PSTR(" ... truncated %d"), log_data_len);
+    }
+
     TasmotaGlobal.log_buffer_pointer &= 0xFF;
     if (!TasmotaGlobal.log_buffer_pointer) {
       TasmotaGlobal.log_buffer_pointer++;  // Index 0 is not allowed as it is the end of char string
     }
     while (TasmotaGlobal.log_buffer_pointer == TasmotaGlobal.log_buffer[0] ||  // If log already holds the next index, remove it
-           strlen(TasmotaGlobal.log_buffer) + log_data_len > LOG_BUFFER_SIZE)
+           strlen(TasmotaGlobal.log_buffer) + strlen(log_data) + strlen(mxtime) + 4 > LOG_BUFFER_SIZE)  // 4 = log_buffer_pointer + '\1' + '\0'
     {
       char* it = TasmotaGlobal.log_buffer;
       it++;                                // Skip log_buffer_pointer
@@ -2343,55 +2426,20 @@ void AddLogData(uint32_t loglevel, const char* log_data) {
 }
 
 void AddLog(uint32_t loglevel, PGM_P formatP, ...) {
-  // To save stack space support logging for max text length of 128 characters
-  char log_data[LOGSZ +4];
-
   va_list arg;
   va_start(arg, formatP);
-  uint32_t len = ext_vsnprintf_P(log_data, LOGSZ +1, formatP, arg);
+  char* log_data = ext_vsnprintf_malloc_P(formatP, arg);
   va_end(arg);
-  if (len > LOGSZ) { strcat(log_data, "..."); }  // Actual data is more
-
-#ifdef DEBUG_TASMOTA_CORE
-  // Profile max_len
-  static uint32_t max_len = 0;
-  if (len > max_len) {
-    max_len = len;
-    Serial.printf("PRF: AddLog %d\n", max_len);
-  }
-#endif
+  if (log_data == nullptr) { return; }
 
   AddLogData(loglevel, log_data);
-}
-
-void AddLog_P(uint32_t loglevel, PGM_P formatP, ...) {
-  // Use more stack space to support logging for max text length of 700 characters
-  char log_data[MAX_LOGSZ];
-
-  va_list arg;
-  va_start(arg, formatP);
-  uint32_t len = ext_vsnprintf_P(log_data, sizeof(log_data), formatP, arg);
-  va_end(arg);
-
-  AddLogData(loglevel, log_data);
-}
-
-void AddLog_Debug(PGM_P formatP, ...)
-{
-  char log_data[MAX_LOGSZ];
-
-  va_list arg;
-  va_start(arg, formatP);
-  uint32_t len = ext_vsnprintf_P(log_data, sizeof(log_data), formatP, arg);
-  va_end(arg);
-
-  AddLogData(LOG_LEVEL_DEBUG, log_data);
+  free(log_data);
 }
 
 void AddLogBuffer(uint32_t loglevel, uint8_t *buffer, uint32_t count)
 {
   char hex_char[(count * 3) + 2];
-  AddLog_P(loglevel, PSTR("DMP: %s"), ToHex_P(buffer, count, hex_char, sizeof(hex_char), ' '));
+  AddLog(loglevel, PSTR("DMP: %s"), ToHex_P(buffer, count, hex_char, sizeof(hex_char), ' '));
 }
 
 void AddLogSerial(uint32_t loglevel)
