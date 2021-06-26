@@ -9,11 +9,13 @@ All notable changes to this project will be documented in this file.
 - Force ESP32 defines USE_UFILESYS, GUI_TRASH_FILE and #define GUI_EDIT_FILE
 - Speed up initial GUI console refresh
 - Simplified configuration for ir-full and removal of tasmota-ircustom
+- Add Esp32 Partition Manager as a Berry component
 
 ### Fixed
 - ESP32 Webcam add boundary marker before sending mjpeg image (#12376)
 - DDS238-2 wrong reactive power value (#12283)
 - NO VALID JSON regression from may 4th (#12440)
+- Telegram response decoding stopped working after 20210621 and exception on long result message (#12451)
 
 ## [Released]
 
