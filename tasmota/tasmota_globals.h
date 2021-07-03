@@ -130,10 +130,6 @@ String EthernetMacAddress(void);
 #define ARDUINO_CORE_RELEASE        ARDUINO_ESP32_RELEASE
 #endif  // ARDUINO_ESP32_RELEASE
 
-#define USE_UFILESYS
-#define GUI_TRASH_FILE
-#define GUI_EDIT_FILE
-
 #undef FIRMWARE_MINIMAL                            // Minimal is not supported as not needed
 
 // Hardware has no ESP32
@@ -163,6 +159,18 @@ String EthernetMacAddress(void);
 /*********************************************************************************************\
  * Mandatory defines satisfying disabled defines
 \*********************************************************************************************/
+
+#ifndef ESP8266_1M
+#define USE_UFILESYS
+#define GUI_TRASH_FILE
+#define GUI_EDIT_FILE
+#define USE_PING
+  #ifdef USE_RULES
+  #define USE_EXPRESSION
+  #define SUPPORT_IF_STATEMENT
+  #define SUPPORT_MQTT_EVENT
+  #endif  // USE_RULES
+#endif  // NOT ESP8266_1M
 
 #ifdef USE_EMULATION_HUE
 #define USE_EMULATION
